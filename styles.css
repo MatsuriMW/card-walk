@@ -57,7 +57,7 @@
 .cw-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
 .cw-head-btns { display: inline-flex; gap: 4px; }
 .cw-head button { font-size: .8em; padding: 2px 8px; height: auto; }
-.cw-view.cw-focus-mode .cw-focus-btn { background: var(--interactive-accent); color: var(--text-on-accent); }
+.cw-view.cw-focus-mode .cw-focus-btn, .cw-view.is-paused .cw-pause-btn { background: var(--interactive-accent); color: var(--text-on-accent); }
 
 /* 同步状态：一个圆点 + 一句结论；点开是设备和每次作答的三步 */
 .cw-sync { margin: 0 0 6px; padding: 5px 8px; border-radius: 9px; background: var(--cw-btn); box-shadow: 0 0 0 1px var(--cw-btn-ring); font-size: .82em; }

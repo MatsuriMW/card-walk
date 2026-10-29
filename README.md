@@ -16,7 +16,7 @@ The interface follows Obsidian's language (English or Chinese).
 - **Daily goal**: a progress bar and the last 14 days (from Anki's review log, so phone reviews count too). Cards marked Again come back three cards later.
 - **Keyboard**: click to select, Space to reveal, 1–4 to answer, ↑↓ to move; ⌥⌘→ focuses on one card, ⌥⌘← or Esc goes back. ⌘-click opens the source note with the line selected.
 - **Right-click → Stop using as a card** removes the `#card` tag or cloze marks and keeps the text (undoable).
-- Optional sounds and sparks when you answer, and an optional line in today's journal logging the session.
+- Optional sounds and sparks when you answer, and an optional line in today's journal logging the session. Review time is real: each card counts from the previous action, at most 60 seconds, and goes into Anki's review log too (stock AnkiConnect ignores it unless patched). Press ⏸ at the top of the panel to stop the timer when you step away.
 
 ## Phone ⇄ computer sync
 

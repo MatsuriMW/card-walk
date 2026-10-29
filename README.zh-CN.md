@@ -17,7 +17,7 @@
 - **键盘**：点一下选中，Space 揭开，1-4 作答，↑↓ 换一张；⌥⌘→ 聚焦只看一张，⌥⌘← 或 Esc 退出（键位跟着 Bullet 的 Zoom）。⌘ 点击打开原文并选中那一行。
 - **右键 → 不再作为卡片**：去掉 `#card` 或挖空标记，文字原样留着，可以撤销。
 - **作答反馈**：答对一小段往上走的音 + 一簇小烟花，连对音一次比一次高；答错一记低沉的。都在设置里能关。
-- **复习计时**（可选）：一轮复习在今天日记顶部记一行 `DONE 14:10-14:12 复习卡片 23 张（作答 18 · 重来 2 · 只看 5）`，螺旋日程用青色画出来。格式可以改。
+- **复习计时**（可选）：一轮复习在今天日记顶部记一行 `DONE 14:10-14:12 复习卡片 23 张（作答 18 · 重来 2 · 只看 5）`，螺旋日程用青色画出来。格式可以改。用时按真实时间：每张从上一次操作算到这次，一张最多 60 秒，也写进 Anki 的复习记录；中途走开点面板顶上的 ⏸，表停。
 
 ## 手机和电脑之间的同步
 
@@ -46,7 +46,7 @@
 
 ## 依赖
 
-- [Anki](https://apps.ankiweb.net) + [AnkiConnect](https://ankiweb.net/shared/info/2055492159)：作答写进 Anki（电脑上要开着）。「复习用时」要给 AnkiConnect 打补丁才记得上（`answerCards` 里 `card.start_timer()` 之后加 `card.timer_started -= duration`），打过补丁的打开「核对用时」。
+- [Anki](https://apps.ankiweb.net) + [AnkiConnect](https://ankiweb.net/shared/info/2055492159)：作答写进 Anki（电脑上要开着）。每张的用时要给 AnkiConnect 打补丁才记得上（`answerCards` 里 `card.start_timer()` 之后加 `card.timer_started -= duration`），打过补丁的打开「核对用时」。
 - [Flashcards](https://github.com/reuseman/flashcards-obsidian)：把卡片同步进 Anki，并把「块 id → Anki 笔记 id」写进笔记属性 `flashcards`，这个插件靠它认出每张卡在 Anki 里是哪条。
 - Upstash Redis：可选，手机同步用。
 - 第二大脑：可选。装了就借它的本机向量，把没挂学科双链的卡按意思归到最像的学科。

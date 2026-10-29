@@ -26,8 +26,7 @@ const DEFAULTS = {
     knowledgeFolders: "",     // 链到这些文件夹里的页（知识概念页）的挖空不按外文猜成语言类（逗号分隔）
     ankiReview: true,         // 揭开后能作答，写进 Anki
     ankiUrl: "http://127.0.0.1:8765",
-    ankiSeconds: 5,           // 写进 Anki 复习记录的用时（秒）；原版 AnkiConnect 忽略这个值，要打补丁才认
-    durationCheck: false,     // 作答后核对用时有没有记上（打过补丁的人才开）
+    durationCheck: false,     // 作答后核对用时有没有记上（原版 AnkiConnect 不认用时，打过补丁的人才开）
     ankiAutoSync: false,      // 答完让 Anki 同步到 AnkiWeb（最后一次作答 3 分钟后一次）
     reviewLog: false,         // 一轮复习的时间和张数记进今天日记顶部（属性区后面第一行）
     reviewLogTemplate: "",    // 那一行的格式；空 = 按界面语言的默认格式
@@ -44,6 +43,7 @@ const STR = {
     zh: {
         viewTitle: "刷卡", open: "打开刷卡", syncNow: "立刻同步", head: "🃏 刷卡 · {date}",
         focusTip: "聚焦：只看一张（⌥⌘→ 进，⌥⌘← 或 Esc 出）", againTip: "重新抽", noFocus: "没有可以聚焦的卡片",
+        pauseTip: "暂停计时：这一轮先记进日记，回来另起一行", resumeTip: "继续计时",
         goal: "今天 {done} / {goal} 张", goalMet: "✓ 今天 {done} / {goal} 张", dayTip: "{d} · {n} 张",
         streak: "连续 {n} 天", streak0: "今天开个头", left: "这一批还剩 {n} 张",
         finishMet: "今天的 {goal} 张刷完了", finish: "这一批刷完了",
@@ -86,11 +86,11 @@ const STR = {
         sLang: "语言类", sLangP: "语言类双链（正则）", sLangPD: "卡片本身、上层或下层链到名字符合它的页就算语言类，单独一个「语言」分类。留空 = 不分语言类。例：^.{1,4}[语文](记录|表达)$",
         sLangE: "不算语言类的页", sLangED: "逗号分隔", sLangG: "没挂双链的外文挖空也算语言类", sLangGD: "挖掉的全是英文生词 / 日文、或整句是英文句子的挖空",
         sKnow: "知识概念文件夹", sKnowD: "链到这些文件夹里的页的挖空，不按外文猜成语言类（逗号分隔）",
-        sAnki: "Anki", sAnkiR: "作答写进 Anki", sAnkiRD: "揭开后可以按「重来 / 困难 / 良好 / 简单」作答，直接写进 Anki 的复习记录（电脑上要 Anki 开着、装了 AnkiConnect）。没到期的卡只能看",
-        sAnkiUrl: "AnkiConnect 地址", sAnkiSec: "复习用时（秒）", sAnkiSecD: "写进 Anki 复习记录的用时，复习计时也按它算。原版 AnkiConnect 会忽略这个值",
+        sAnki: "Anki", sAnkiR: "作答写进 Anki", sAnkiRD: "揭开后可以按「重来 / 困难 / 良好 / 简单」作答，直接写进 Anki 的复习记录（电脑上要 Anki 开着、装了 AnkiConnect）。没到期的卡只能看。每张的用时按真实时间记：从上一次操作算到这次，暂停的不算，一张最多 60 秒（原版 AnkiConnect 不认用时，要打补丁）",
+        sAnkiUrl: "AnkiConnect 地址",
         sDurChk: "核对用时有没有记上", sDurChkD: "给 AnkiConnect 打过补丁（answerCards 里 card.timer_started -= duration）的才开：AnkiConnect 自动更新后补丁会丢，这里会在卡片上提示",
         sAutoSync: "答完同步 AnkiWeb", sAutoSyncD: "最后一次作答 3 分钟后（或关掉刷卡面板时）让 Anki 同步一次。要在 Anki 里登录过 AnkiWeb",
-        sLog: "复习计时记进日记", sLogD: "一轮复习（最后一次操作 3 分钟后，或关掉面板时算结束）在今天日记属性区后面插一行；10 分钟内接着复习就延长那一行。用时按张数 ×「复习用时」算",
+        sLog: "复习计时记进日记", sLogD: "一轮复习（最后一次操作 3 分钟后，或关掉面板时算结束）在今天日记属性区后面插一行；10 分钟内接着复习就延长那一行。用时是这一轮每张卡的真实用时加起来。中途要走开就点面板顶上的 ⏸：表停，这一轮当场记一行，回来另起一行",
         sLogTpl: "那一行的格式", sLogTplD: "可用 {start} {end} {n} {detail}。留空 = 「{tpl}」",
         sSync: "手机同步（Upstash）", sSyncD: "手机上答的卡经 Upstash Redis 中转，电脑几秒内写进 Anki。每台设备都填同一个库。上传的只有卡号、作答等级、时间、设备名和 Anki 进度快照（卡号列表），不传卡片内容。",
         sRelayUrl: "REST 地址", sRelayUrlD: "Upstash 控制台里 REST API 一栏的 URL（https://…upstash.io）", sRelayTok: "REST token", sRelayTokD: "同一栏的 token（不是只读的那个）",
@@ -101,6 +101,7 @@ const STR = {
     en: {
         viewTitle: "Card Walk", open: "Open Card Walk", syncNow: "Sync now", head: "🃏 Card Walk · {date}",
         focusTip: "Focus on one card (⌥⌘→ in, ⌥⌘← or Esc out)", againTip: "Draw again", noFocus: "No card to focus",
+        pauseTip: "Pause the timer: log this session now, start a new one when you're back", resumeTip: "Resume the timer",
         goal: "Today {done} / {goal}", goalMet: "✓ Today {done} / {goal}", dayTip: "{d} · {n} cards",
         streak: "{n}-day streak", streak0: "Start your streak today", left: "{n} left in this batch",
         finishMet: "Today's {goal} cards are done", finish: "This batch is done",
@@ -141,11 +142,11 @@ const STR = {
         sLang: "Language cards", sLangP: "Language link pattern (regex)", sLangPD: "Cards linking (in the block or its parents/children) to a page whose name matches go to a separate “Language” tab. Leave empty to turn this off.",
         sLangE: "Pages that don't count", sLangED: "Comma separated", sLangG: "Guess foreign-word clozes", sLangGD: "Clozes that hide only English or Japanese words, or whole English sentences, count as language cards even without links",
         sKnow: "Concept folders", sKnowD: "Clozes linking to pages in these folders are never guessed as language cards (comma separated)",
-        sAnki: "Anki", sAnkiR: "Answer into Anki", sAnkiRD: "After revealing, answer Again / Hard / Good / Easy and the review goes straight into Anki (on a computer, Anki must be running with AnkiConnect). Cards that aren't due can only be read.",
-        sAnkiUrl: "AnkiConnect URL", sAnkiSec: "Review time (seconds)", sAnkiSecD: "Time recorded for each review, also used for the review log. Stock AnkiConnect ignores it.",
+        sAnki: "Anki", sAnkiR: "Answer into Anki", sAnkiRD: "After revealing, answer Again / Hard / Good / Easy and the review goes straight into Anki (on a computer, Anki must be running with AnkiConnect). Cards that aren't due can only be read. Each review records the real time spent, from the previous action to this one, excluding pauses, at most 60 seconds per card (stock AnkiConnect ignores the time; it needs a patch).",
+        sAnkiUrl: "AnkiConnect URL",
         sDurChk: "Check the review time", sDurChkD: "Only if you patched AnkiConnect (card.timer_started -= duration in answerCards): warns on the card when an AnkiConnect update removed the patch",
         sAutoSync: "Sync AnkiWeb after answering", sAutoSyncD: "Ask Anki to sync 3 minutes after the last answer (or when the panel is closed). Requires an AnkiWeb login in Anki.",
-        sLog: "Log review sessions in the journal", sLogD: "Each session (ends 3 minutes after the last action or when the panel closes) adds a line after today's properties; reviewing again within 10 minutes extends it. Time = cards × review time.",
+        sLog: "Log review sessions in the journal", sLogD: "Each session (ends 3 minutes after the last action or when the panel closes) adds a line after today's properties; reviewing again within 10 minutes extends it. The time is the real time spent on each card, added up. Stepping away? Press ⏸ at the top of the panel: the timer stops, the session is logged now and a new line starts when you're back.",
         sLogTpl: "Log line format", sLogTplD: "Use {start} {end} {n} {detail}. Empty = “{tpl}”",
         sSync: "Phone sync (Upstash)", sSyncD: "Answers made on your phone go through an Upstash Redis database and reach Anki on your computer within seconds. Use the same database on every device. Only card IDs, ratings, times, device names and an Anki progress snapshot (card IDs) are uploaded, never card content.",
         sRelayUrl: "REST URL", sRelayUrlD: "The REST API URL from the Upstash console (https://…upstash.io)", sRelayTok: "REST token", sRelayTokD: "The token from the same section (not the read-only one)",
@@ -462,6 +463,7 @@ const fxVol = (s) => { const v = Number(s?.fxVolume); return Number.isFinite(v) 
 // ---------- 中转站：Upstash Redis 的 REST 接口，一次请求带多条命令 ----------
 // 键见 DESIGN.md：cw:hb 心跳 / cw:snap + cw:snapv 电脑推的 Anki 快照 / cw:ans 作答 / cw:goal 每台设备每天刷了几张
 const K = { hb: "cw:hb", snap: "cw:snap", snapv: "cw:snapv", ans: "cw:ans", goal: "cw:goal" };
+const CARD_MAX_MS = 60 * 1000;           // 一张卡最多记这么久的用时
 const PHONE_ACTIVE_MS = 3 * 60 * 1000;   // 手机这么久内有心跳 = 正在刷，电脑改成快轮询
 const ONLINE_MS = 150 * 1000;            // 电脑这么久内有心跳 = 在线（它闲时最慢 60 秒轮询一次，留够余量）
 class Relay {
@@ -518,6 +520,7 @@ class CardView extends ItemView {
         this.scope = new Scope(this.app.scope);
         this.focusRO = new ResizeObserver(() => this.recenter());
         this.register(() => this.focusRO.disconnect());
+        this.plugin.mark = Date.now();   // 面板没开着的时间不算进第一张卡的用时
         await this.render();
         this.plugin.poll();
     }
@@ -654,6 +657,10 @@ class CardView extends ItemView {
         fz.onclick = () => (this.focused ? this.focusOut() : this.focusIn());
         const again = btns.createEl("button", { text: "↻", attr: { "aria-label": t("againTip") } });
         again.onclick = () => { this.shift++; this.render(); };
+        const p = this.plugin;
+        this.pauseBtn = p.settings.reviewLog ? btns.createEl("button", { cls: "cw-pause-btn" }) : null;
+        if (this.pauseBtn) this.pauseBtn.onclick = () => p.setPaused(!p.paused);
+        this.updatePause();
         this.syncEl = top.createDiv({ cls: "cw-sync" });
         this.renderSync();
         this.goalEl = top.createDiv({ cls: "cw-goal" });
@@ -661,6 +668,13 @@ class CardView extends ItemView {
         await this.renderWalk(el, today, stale);
         if (stale()) return;
         if (this.focused) { const f = el.querySelector(LIVE); if (f) this.focusOn(f, null); }
+    }
+    updatePause() {
+        const on = !!this.plugin.paused;
+        this.contentEl.toggleClass("is-paused", on);
+        if (!this.pauseBtn) return;
+        this.pauseBtn.setText(on ? "▶︎" : "‖");   // ⏸ 在 macOS 上会画成彩色 emoji，和旁边的 ◎ ↻ 不配
+        this.pauseBtn.setAttr("aria-label", t(on ? "resumeTip" : "pauseTip"));
     }
     // ----- 同步状态条：一行结论，点开是设备和最近的作答（每一步） -----
     renderSync() {
@@ -907,6 +921,7 @@ class CardView extends ItemView {
         const reveal = () => {
             st.revealed = true; show(full); row.empty();
             if (p.settings.fxSound) FX.reveal(fxVol(p.settings));
+            p.spend(st);
             p.reviewTick(st, "look");
             if (st.reviewable) this.answerButtons(row, anki, st);
         };
@@ -1001,13 +1016,15 @@ class CardView extends ItemView {
                 evt.stopPropagation();
                 const rect = b.getBoundingClientRect();   // 先取位置：按钮马上要被清掉，烟花得知道在哪儿炸
                 row.querySelectorAll("button").forEach((x) => (x.disabled = true));
+                p.spend(st);
+                const dur = Math.max(1, Math.round(st.ms / 1000));   // AnkiConnect 的 duration 按秒
                 try {
                     let label;
                     if (MOBILE) {
-                        const up = await p.recordAnswer(st.card.cardId, ease);
+                        const up = await p.recordAnswer(st.card.cardId, ease, dur);
                         label = up ? t("savedUp") : t("savedLocal");
                     } else {
-                        const ok = await p.anki("answerCards", { answers: [{ cardId: st.card.cardId, ease, duration: Number(p.settings.ankiSeconds) || 0 }] });
+                        const ok = await p.anki("answerCards", { answers: [{ cardId: st.card.cardId, ease, duration: dur }] });
                         if (!ok?.[0]) throw new Error(t("rejected"));
                         const [after] = await p.anki("cardsInfo", { cards: [st.card.cardId] });
                         p.dueCache = null;
@@ -1033,7 +1050,7 @@ class CardView extends ItemView {
                     if (good && this.combo >= 3 && p.settings.fxAnim) FX.float(rect, `×${this.combo}`);
                     setTimeout(() => st.done?.(), 900);   // 让人看一眼结果，再收走
                     // 核对用时有没有记上：AnkiConnect 自动更新后补丁会被覆盖，用时又变回约 0 秒
-                    if (!MOBILE && p.settings.durationCheck && Number(p.settings.ankiSeconds) > 0) {
+                    if (!MOBILE && p.settings.durationCheck) {
                         try {
                             const rv = (await p.anki("getReviewsOfCards", { cards: [st.card.cardId] }))?.[String(st.card.cardId)] || [];
                             const last = rv.reduce((m, x) => (!m || x.id > m.id ? x : m), null);
@@ -1151,7 +1168,7 @@ module.exports = class CardWalk extends Plugin {
             if (goal !== this.goalPushed) cmds.push(["HSET", K.goal, dev, goal]);
             // 手机上还没确认到了中转站的作答：用 HSETNX 补推（已经在了就不动，免得把电脑改成 applied 的又改回 queued）
             const out = MOBILE ? this.outbox() : [];
-            for (const x of out) cmds.push(["HSETNX", K.ans, x.id, JSON.stringify({ cid: x.cid, ease: x.ease, at: x.at, dev, state: "queued" })]);
+            for (const x of out) cmds.push(["HSETNX", K.ans, x.id, JSON.stringify({ cid: x.cid, ease: x.ease, dur: x.dur, at: x.at, dev, state: "queued" })]);
             const iHb = cmds.push(["HGETALL", K.hb]) - 1, iV = cmds.push(["GET", K.snapv]) - 1, iAns = cmds.push(["HGETALL", K.ans]) - 1, iGoal = cmds.push(["HGETALL", K.goal]) - 1;
             const r = await this.relay.run(cmds);
             this.goalPushed = goal;
@@ -1195,14 +1212,14 @@ module.exports = class CardWalk extends Plugin {
         this.local.mine = this.local.mine.filter((x) => !x.up || x.at > cut || (this.ans[x.id] && !["applied", "rejected"].includes(this.ans[x.id].state)));
         if (this.local.mine.length !== before) this.saveLocal();
     }
-    async recordAnswer(cid, ease) {
-        const x = { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, cid, ease, at: Date.now(), up: false };
+    async recordAnswer(cid, ease, dur) {
+        const x = { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, cid, ease, dur, at: Date.now(), up: false };
         (this.local.mine ||= []).push(x);
         this.saveLocal();
         try {
-            await this.relay.run([["HSETNX", K.ans, x.id, JSON.stringify({ cid, ease, at: x.at, dev: this.local.dev, state: "queued" })]]);
+            await this.relay.run([["HSETNX", K.ans, x.id, JSON.stringify({ cid, ease, dur, at: x.at, dev: this.local.dev, state: "queued" })]]);
             this.markUploaded([x.id]);
-            this.ans[x.id] = { cid, ease, at: x.at, dev: this.local.dev, state: "queued" };
+            this.ans[x.id] = { cid, ease, dur, at: x.at, dev: this.local.dev, state: "queued" };
             this.syncState = { ok: true, at: Date.now() };
         } catch (e) { this.syncState = { ok: false, err: String(e.message || e).slice(0, 80), at: Date.now() }; }
         this.refreshSyncUI();
@@ -1248,10 +1265,9 @@ module.exports = class CardWalk extends Plugin {
         todo.sort((a, b) => a.at - b.at);
         const enc = ({ id, ...x }) => JSON.stringify(x);
         if (todo.length) await this.relay.run(todo.map((x) => ["HSET", K.ans, x.id, enc({ ...x, state: "applying", by: dev, claimAt: now })]));
-        const sec = Number(this.settings.ankiSeconds) || 0;
         for (const x of todo) {
             try {
-                const ok = await this.anki("answerCards", { answers: [{ cardId: x.cid, ease: x.ease, duration: sec }] });
+                const ok = await this.anki("answerCards", { answers: [{ cardId: x.cid, ease: x.ease, duration: x.dur || 0 }] });   // 旧版手机端记的作答没带用时
                 if (!ok?.[0]) { results.push({ ...x, state: "rejected", err: t("cardDeleted"), doneAt: Date.now() }); continue; }
                 let ivl = 0;
                 try { const [info] = await this.anki("cardsInfo", { cards: [x.cid] }); if (info?.queue === 2) ivl = info.interval; } catch (e) { /* 只是少个天数 */ }
@@ -1586,10 +1602,18 @@ module.exports = class CardWalk extends Plugin {
         finally { this.reviewDaysLoading = false; }
     }
     // 一轮 = 第一次揭开 / 作答到最后一次；最后一次操作 3 分钟后（或关掉面板时）算结束，写一行。先揭开再作答的卡只算一次作答
+    // 这张卡又花了多少时间：从上一次操作（或继续计时、打开面板）算到现在，暂停的不算；一张最多 60 秒（和 Anki「最长作答时间」的默认值一样），忘了暂停走开也不会记出离谱的数
+    spend(st) {
+        if (this.paused) this.setPaused(false);   // 暂停着又揭开 / 作答了：就是回来了
+        const now = Date.now();
+        st.ms = (st.ms || 0) + Math.max(0, Math.min(now - this.mark, CARD_MAX_MS - (st.ms || 0)));
+        this.mark = now;
+    }
     reviewTick(st, kind, ease) {
         if (!st.goal) { st.goal = true; this.goalTick(); }
         if (!this.settings.reviewLog) return;
-        const s = (this.reviewSession ||= { start: Date.now(), end: Date.now(), answer: 0, again: 0, look: 0 });
+        const s = (this.reviewSession ||= { start: Date.now(), end: Date.now(), answer: 0, again: 0, look: 0, ms: 0 });
+        s.ms += (st.ms || 0) - (st.logged || 0); st.logged = st.ms;
         if (kind === "look" && !st.counted) { s.look++; st.counted = "look"; }
         if (kind === "answer" && st.counted !== "answer") {
             if (st.counted === "look") s.look--;
@@ -1599,6 +1623,13 @@ module.exports = class CardWalk extends Plugin {
         s.end = Date.now();
         clearTimeout(this.reviewTimer);
         this.reviewTimer = setTimeout(() => this.flushReview(), 3 * 60 * 1000);
+    }
+    // 暂停：这一轮当场记进日记，回来另起一行（不和暂停前那行合并）；点 ▶ 或接着揭开 / 作答就继续
+    async setPaused(on) {
+        this.paused = on;
+        if (!on) this.mark = Date.now();
+        for (const v of this.views()) v.updatePause();
+        if (on) { await this.flushReview(); this.lastReview = null; }
     }
     // 日记路径和「今天」：装了螺旋日程（nautilus-spiral）就跟它一致（凌晨分界前算前一天），否则按核心「日记」插件的设置
     reviewJournalPath(ts) {
@@ -1619,14 +1650,13 @@ module.exports = class CardWalk extends Plugin {
         const last = this.lastReview;
         const merge = last && last.path === path && s.start - last.end < 10 * 60 * 1000;
         const hm = (ts) => moment(ts).format("HH:mm");
-        const per = Math.max(1, Number(this.settings.ankiSeconds) || 5);
         const tpl = String(this.settings.reviewLogTemplate || "").trim() || t("logTpl");
         const lineOf = (x) => {
-            const mins = Math.max(1, Math.round((x.answer + x.look) * per / 60));   // 至少一分钟，按时间画图的插件才画得出来
+            const mins = Math.max(1, Math.round((x.ms || 0) / 60000));   // 至少一分钟，按时间画图的插件才画得出来
             const parts = [x.answer ? t("logAns", { n: x.answer }) : "", x.again ? t("logAgain", { n: x.again }) : "", x.look ? t("logLook", { n: x.look }) : ""].filter(Boolean);
             return "- " + tpl.replace(/\{start\}/g, hm(x.end - mins * 60 * 1000)).replace(/\{end\}/g, hm(x.end)).replace(/\{n\}/g, String(x.answer + x.look)).replace(/\{detail\}/g, parts.join(" · "));
         };
-        const tot = merge ? { start: last.start, end: s.end, answer: last.answer + s.answer, again: last.again + s.again, look: last.look + s.look } : null;
+        const tot = merge ? { start: last.start, end: s.end, answer: last.answer + s.answer, again: last.again + s.again, look: last.look + s.look, ms: (last.ms || 0) + s.ms } : null;
         let wrote = { ...s, line: lineOf(s) };   // 上一行被改过、找不到了，就只记这一轮，免得重复计时
         try {
             let f = this.app.vault.getAbstractFileByPath(path);
@@ -1784,7 +1814,6 @@ class CWSettings extends PluginSettingTab {
         new Setting(c).setName(t("sAnki")).setHeading();
         tog(t("sAnkiR"), t("sAnkiRD"), "ankiReview");
         text(t("sAnkiUrl"), "", "ankiUrl");
-        num(t("sAnkiSec"), t("sAnkiSecD"), "ankiSeconds", 0);
         tog(t("sDurChk"), t("sDurChkD"), "durationCheck");
         tog(t("sAutoSync"), t("sAutoSyncD"), "ankiAutoSync");
         tog(t("sLog"), t("sLogD"), "reviewLog");
