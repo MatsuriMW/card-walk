@@ -8,6 +8,16 @@ Review the `#card` flashcards and `==cloze==` blocks in your notes from a side p
 
 The interface follows Obsidian's language (English or Chinese).
 
+**Contents**
+
+- [Reviewing](#reviewing)
+- [Phone ⇄ computer sync](#phone--computer-sync)
+- [Requirements](#requirements)
+- [Network use](#network-use)
+- [Install](#install)
+- [Feedback and updates](#feedback-and-updates)
+- [License](#license)
+
 ## Reviewing
 
 - Open it from the ribbon or the command **Open Card Walk**. Optionally, a tab is added to the right sidebar the first time you open Obsidian each day.
