@@ -55,6 +55,10 @@ Card Walk talks to AnkiConnect on your computer (`http://127.0.0.1:8765` by defa
 
 Search for **Card Walk** in Settings → Community plugins, or download `main.js`, `manifest.json` and `styles.css` from [Releases](https://github.com/MatsuriMW/card-walk/releases) into `<vault>/.obsidian/plugins/card-walk/`. BRAT also works: `MatsuriMW/card-walk`.
 
+## Feedback and updates
+
+To follow new features, send feedback or keep up with progress, follow me on Twitter: [@Matsurimywaifu](https://x.com/Matsurimywaifu).
+
 ## License
 
 MIT

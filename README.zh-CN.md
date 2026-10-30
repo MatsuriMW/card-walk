@@ -59,6 +59,10 @@
 
 只连你电脑上的 AnkiConnect（默认 `http://127.0.0.1:8765`），以及你自己设置的 Upstash 库，没有别的请求，也不收集使用数据。
 
+## 反馈与后续
+
+想追踪后续功能、反馈问题、关注后续进展，欢迎关注我的 Twitter：[@Matsurimywaifu](https://x.com/Matsurimywaifu)。
+
 ## License
 
 MIT
