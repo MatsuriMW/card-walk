@@ -26,7 +26,7 @@ const DEFAULTS = {
     knowledgeFolders: "",     // 链到这些文件夹里的页（知识概念页）的挖空不按外文猜成语言类（逗号分隔）
     ankiReview: true,         // 揭开后能作答，写进 Anki
     ankiUrl: "http://127.0.0.1:8765",
-    durationCheck: false,     // 作答后核对用时有没有记上（原版 AnkiConnect 不认用时，打过补丁的人才开）
+    durationCheck: false,     // 作答后核对用时有没有记进 Anki（新版 AnkiConnect 直接认；老版要打补丁）
     ankiAutoSync: false,      // 答完让 Anki 同步到 AnkiWeb（最后一次作答 3 分钟后一次）
     reviewLog: false,         // 一轮复习的时间和张数记进今天日记顶部（属性区后面第一行）
     reviewLogTemplate: "",    // 那一行的格式；空 = 按界面语言的默认格式
@@ -61,7 +61,7 @@ const STR = {
         answeredOn: "已在 {dev} 上答过", queuedPhone: "{dev} 上答过了，等着补进 Anki", notDue: "还没到期", changedElsewhere: "进度刚更新：已经在别处答过",
         ease1: "重来", ease2: "困难", ease3: "良好", ease4: "简单",
         nextDays: "✓ {n} 天后", soon: "✓ 一会儿再来", saved: "✓ 记下了", savedUp: "✓ 已到中转站 · 电脑会写进 Anki", savedLocal: "✓ 存在本机 · 联网后上传",
-        durWarn: " · ⚠️ 用时没记上（AnkiConnect 补丁掉了）", notRecorded: "没记进 Anki：{e}", rejected: "Anki 没接受这次作答",
+        durWarn: " · ⚠️ 用时没记进 Anki", notRecorded: "没记进 Anki：{e}", rejected: "Anki 没接受这次作答",
         goalDone: "今天的 {goal} 张刷完了 🎉",
         noMark: "这一块里没找到 #card 或挖空标记", changed: "原文已经改过了，没动。刷新一下再试", uncarded: "「{f}」这一块已不再是卡片 ", undo: "撤销", undone: "已撤销", cantUndo: "原文又改过了，没法撤销",
         logFail: "复习计时没记进日记：{e}", logTpl: "DONE {start}-{end} 复习卡片 {n} 张（{detail}）", logAns: "作答 {n}", logAgain: "重来 {n}", logLook: "只看 {n}",
@@ -85,12 +85,14 @@ const STR = {
         sWeight: "抽卡权重", sRecent: "近一年的卡更容易抽到", sRecentD: "近一年新增的卡被抽到的权重是更早那些的几倍；1 = 不偏向",
         sBoost: "这些双链的卡更容易抽到", sBoostD: "卡片本身或上层母块链到这些页（逗号分隔，不分大小写），权重乘下面的倍数", sBoostN: "上面这些双链的倍数", sBoostND: "1 = 不偏向",
         sSubjects: "学科", sSubjectsD: "一行一门：「名称：双链, 双链 | 文件夹, 文件夹」。卡片本身或上层母块链到这些页、或在这些文件夹里，就归这门（从上往下第一个对上的）。都没对上的：装了第二大脑就按意思归到最像的一门，否则算「其他」",
+        sSuggest: "从卡片里推荐学科", sSuggestD: "看卡片本身和母块里链到的页、卡片所在的文件夹，挑出能把卡分得最开的几个，加到上面的学科里（已经归了类的卡不再算）。加完可以改名、合并或删掉", sSuggestB: "推荐",
+        suggestNone: "没找到够多卡片共用的双链或文件夹", suggestAdded: "加了 {n} 门学科，在设置里可以改名、合并或删掉",
         sLang: "语言类", sLangP: "语言类双链（正则）", sLangPD: "卡片本身、上层或下层链到名字符合它的页就算语言类，单独一个「语言」分类。留空 = 不分语言类。例：^.{1,4}[语文](记录|表达)$",
         sLangE: "不算语言类的页", sLangED: "逗号分隔", sLangG: "没挂双链的外文挖空也算语言类", sLangGD: "挖掉的全是英文生词 / 日文、或整句是英文句子的挖空",
         sKnow: "知识概念文件夹", sKnowD: "链到这些文件夹里的页的挖空，不按外文猜成语言类（逗号分隔）",
-        sAnki: "Anki", sAnkiR: "作答写进 Anki", sAnkiRD: "揭开后可以按「重来 / 困难 / 良好 / 简单」作答，直接写进 Anki 的复习记录（电脑上要 Anki 开着、装了 AnkiConnect）。没到期的卡只能看。每张的用时按真实时间记：从上一次操作算到这次，暂停的不算，一张最多 60 秒（原版 AnkiConnect 不认用时，要打补丁）",
+        sAnki: "Anki", sAnkiR: "作答写进 Anki", sAnkiRD: "揭开后可以按「重来 / 困难 / 良好 / 简单」作答，直接写进 Anki 的复习记录（电脑上要 Anki 开着、装了 AnkiConnect）。没到期的卡只能看。每张的用时按真实时间记：从上一次操作算到这次，暂停的不算，一张最多 60 秒（新版 AnkiConnect 直接认；老版不认，要打补丁）",
         sAnkiUrl: "AnkiConnect 地址",
-        sDurChk: "核对用时有没有记上", sDurChkD: "给 AnkiConnect 打过补丁（answerCards 里 card.timer_started -= duration）的才开：AnkiConnect 自动更新后补丁会丢，这里会在卡片上提示",
+        sDurChk: "核对用时有没有记上", sDurChkD: "作答后查一下这次的用时进没进 Anki，没进就在卡片上提示。新版 AnkiConnect（有 /api/v1 接口）直接认用时；老版要打补丁（answerCards 里 card.timer_started -= duration），自动更新后补丁会丢",
         sAutoSync: "答完同步 AnkiWeb", sAutoSyncD: "最后一次作答 3 分钟后（或关掉刷卡面板时）让 Anki 同步一次。要在 Anki 里登录过 AnkiWeb",
         sLog: "复习计时记进日记", sLogD: "一轮复习（最后一次操作 3 分钟后，或关掉面板时算结束）在今天日记属性区后面插一行；10 分钟内接着复习就延长那一行。用时是这一轮每张卡的真实用时加起来。中途要走开就点面板顶上的 ⏸：表停，这一轮当场记一行，回来另起一行",
         sLogTpl: "那一行的格式", sLogTplD: "可用 {start} {end} {n} {detail}。留空 = 「{tpl}」",
@@ -121,7 +123,7 @@ const STR = {
         answeredOn: "Already answered on {dev}", queuedPhone: "Answered on {dev}, waiting to go into Anki", notDue: "Not due yet", changedElsewhere: "Progress just updated: already answered elsewhere",
         ease1: "Again", ease2: "Hard", ease3: "Good", ease4: "Easy",
         nextDays: "✓ Next in {n} days", soon: "✓ Back soon", saved: "✓ Saved", savedUp: "✓ Uploaded · your computer will add it to Anki", savedLocal: "✓ Saved here · will upload when online",
-        durWarn: " · ⚠️ Review time not recorded (AnkiConnect patch missing)", notRecorded: "Not recorded in Anki: {e}", rejected: "Anki did not accept the answer",
+        durWarn: " · ⚠️ Review time not recorded in Anki", notRecorded: "Not recorded in Anki: {e}", rejected: "Anki did not accept the answer",
         goalDone: "Today's {goal} cards are done 🎉",
         noMark: "No #card or cloze marks in this block", changed: "The note has changed since it was loaded. Refresh and try again.", uncarded: "This block in “{f}” is no longer a card ", undo: "Undo", undone: "Undone", cantUndo: "The note changed again, can't undo",
         logFail: "Couldn't log the review session: {e}", logTpl: "DONE {start}-{end} Reviewed {n} cards ({detail})", logAns: "answered {n}", logAgain: "again {n}", logLook: "viewed {n}",
@@ -143,12 +145,14 @@ const STR = {
         sWeight: "Weighting", sRecent: "Favor cards from the last year", sRecentD: "Cards added in the last year are this many times more likely to be drawn; 1 = no preference",
         sBoost: "Favor cards linking to", sBoostD: "Cards whose block or parent blocks link to these pages (comma separated, case-insensitive) get the multiplier below", sBoostN: "Multiplier for those links", sBoostND: "1 = no preference",
         sSubjects: "Subjects", sSubjectsD: "One per line: “Name: link, link | folder, folder”. A card belongs to the first subject whose links appear in it or its parent blocks, or whose folders contain it. Others go to “Other”, or, if Second Brain is installed, to the most similar subject by meaning.",
+        sSuggest: "Suggest subjects from your cards", sSuggestD: "Looks at the pages your cards and their parent blocks link to and the folders they're in, and picks the few that split your cards best (cards already in a subject don't count). They're added above; rename, merge or delete them as you like.", sSuggestB: "Suggest",
+        suggestNone: "No links or folders are shared by enough cards", suggestAdded: "Added {n} subjects; rename, merge or delete them in settings",
         sLang: "Language cards", sLangP: "Language link pattern (regex)", sLangPD: "Cards linking (in the block or its parents/children) to a page whose name matches go to a separate “Language” tab. Leave empty to turn this off.",
         sLangE: "Pages that don't count", sLangED: "Comma separated", sLangG: "Guess foreign-word clozes", sLangGD: "Clozes that hide only English or Japanese words, or whole English sentences, count as language cards even without links",
         sKnow: "Concept folders", sKnowD: "Clozes linking to pages in these folders are never guessed as language cards (comma separated)",
-        sAnki: "Anki", sAnkiR: "Answer into Anki", sAnkiRD: "After revealing, answer Again / Hard / Good / Easy and the review goes straight into Anki (on a computer, Anki must be running with AnkiConnect). Cards that aren't due can only be read. Each review records the real time spent, from the previous action to this one, excluding pauses, at most 60 seconds per card (stock AnkiConnect ignores the time; it needs a patch).",
+        sAnki: "Anki", sAnkiR: "Answer into Anki", sAnkiRD: "After revealing, answer Again / Hard / Good / Easy and the review goes straight into Anki (on a computer, Anki must be running with AnkiConnect). Cards that aren't due can only be read. Each review records the real time spent, from the previous action to this one, excluding pauses, at most 60 seconds per card (newer AnkiConnect takes it directly; older versions ignore it unless patched).",
         sAnkiUrl: "AnkiConnect URL",
-        sDurChk: "Check the review time", sDurChkD: "Only if you patched AnkiConnect (card.timer_started -= duration in answerCards): warns on the card when an AnkiConnect update removed the patch",
+        sDurChk: "Check the review time", sDurChkD: "After answering, check that the review time reached Anki and warn on the card if it didn't. Newer AnkiConnect (with the /api/v1 interface) takes the time directly; older versions need a patch (card.timer_started -= duration in answerCards), which updates remove",
         sAutoSync: "Sync AnkiWeb after answering", sAutoSyncD: "Ask Anki to sync 3 minutes after the last answer (or when the panel is closed). Requires an AnkiWeb login in Anki.",
         sLog: "Log review sessions in the journal", sLogD: "Each session (ends 3 minutes after the last action or when the panel closes) adds a line after today's properties; reviewing again within 10 minutes extends it. The time is the real time spent on each card, added up. Stepping away? Press ⏸ at the top of the panel: the timer stops, the session is logged now and a new line starts when you're back.",
         sLogTpl: "Log line format", sLogTplD: "Use {start} {end} {n} {detail}. Empty = “{tpl}”",
@@ -1140,8 +1144,7 @@ class CardView extends ItemView {
                         const up = await p.recordAnswer(st.card.cardId, ease, dur);
                         label = up ? t("savedUp") : t("savedLocal");
                     } else {
-                        const ok = await p.anki("answerCards", { answers: [{ cardId: st.card.cardId, ease, duration: dur }] });
-                        if (!ok?.[0]) throw new Error(t("rejected"));
+                        if (!(await p.answerCard(st.card.cardId, ease, dur))) throw new Error(t("rejected"));
                         const [after] = await p.anki("cardsInfo", { cards: [st.card.cardId] });
                         p.dueCache = null;
                         p.scheduleAnkiSync();
@@ -1383,8 +1386,8 @@ module.exports = class CardWalk extends Plugin {
         if (todo.length) await this.relay.run(todo.map((x) => ["HSET", K.ans, x.id, enc({ ...x, state: "applying", by: dev, claimAt: now })]));
         for (const x of todo) {
             try {
-                const ok = await this.anki("answerCards", { answers: [{ cardId: x.cid, ease: x.ease, duration: x.dur || 0 }] });   // 旧版手机端记的作答没带用时
-                if (!ok?.[0]) { results.push({ ...x, state: "rejected", err: t("cardDeleted"), doneAt: Date.now() }); continue; }
+                // 旧版手机端记的作答没带用时
+                if (!(await this.answerCard(x.cid, x.ease, x.dur || 0))) { results.push({ ...x, state: "rejected", err: t("cardDeleted"), doneAt: Date.now() }); continue; }
                 let ivl = 0;
                 try { const [info] = await this.anki("cardsInfo", { cards: [x.cid] }); if (info?.queue === 2) ivl = info.interval; } catch (e) { /* 只是少个天数 */ }
                 results.push({ ...x, state: "applied", ivl, doneAt: Date.now() });
@@ -1576,6 +1579,45 @@ module.exports = class CardWalk extends Plugin {
     subjects() {
         if (this._subsText !== this.settings.subjects) { this._subsText = this.settings.subjects; this._subs = parseSubjects(this.settings.subjects); }
         return this._subs;
+    }
+    // 从卡片里推荐学科：候选是卡片本身或母块链到的页、卡片所在的顶层文件夹；每轮挑覆盖「还没归类」的卡最多的那个，覆盖太少就停，最多 8 门
+    async suggestSubjects() {
+        const pool = await this.walkPool(), mc = this.app.metadataCache, used = this.subjects();
+        const items = [...pool.card, ...pool.cloze].filter((it) => !it.lang);
+        const covered = new Set(items.filter((it) => this.ruleSubject(it)));
+        const daily = this.dailyCfg().folder.split("/")[0];
+        // 没建页面的双链在卡池里是小写：从「未解析的链接」里找回原来的大小写
+        const caseOf = new Map();
+        for (const m of Object.values(mc.unresolvedLinks || {})) for (const k of Object.keys(m)) { const n = k.split("/").pop(); caseOf.set(n.toLowerCase(), n); }
+        const cand = new Map();
+        const add = (key, name, line, it) => {
+            if (/[:：|,，]/.test(name)) return;   // 学科那一行的分隔符，名字里有就没法写
+            let c = cand.get(key);
+            if (!c) cand.set(key, (c = { line, cards: new Set() }));
+            c.cards.add(it);
+        };
+        for (const it of items) {
+            for (const l of it.links || []) {
+                if (used.some((x) => x.links.has(l))) continue;
+                const f = mc.getFirstLinkpathDest(l, it.file.path);
+                if (f && this.journalDate(f)) continue;   // 日记页不当学科
+                const name = f?.basename || caseOf.get(l) || l;
+                add("l:" + l, name, `${name}：${name}`, it);
+            }
+            const top = it.file.path.includes("/") ? it.file.path.split("/")[0] : "";
+            if (top && top !== daily && !used.some((x) => x.folders.includes(top))) add("f:" + top, top, `${top}：| ${top}`, it);
+        }
+        const out = [], min = Math.max(3, Math.ceil(items.length * 0.02));
+        while (out.length < 8) {
+            let best = null, gain = 0;
+            for (const [k, c] of cand) { let g = 0; for (const it of c.cards) if (!covered.has(it)) g++; if (g > gain) { gain = g; best = k; } }
+            if (!best || gain < min) break;
+            const c = cand.get(best);
+            out.push(c.line);
+            for (const it of c.cards) covered.add(it);
+            cand.delete(best);
+        }
+        return out;
     }
     ruleSubject(it) {
         for (const x of this.subjects()) {
@@ -1802,6 +1844,35 @@ module.exports = class CardWalk extends Plugin {
             if (r.json?.error) throw new Error(r.json.error);
         } catch (e) { new Notice(t("ankiSyncFail", { e: e.message || e }), 8000); }
     }
+    // 作答写进 Anki，带上用时（秒）；false = Anki 里没这张卡。新版 AnkiConnect（有 /api/v1）的老接口 answerCards 不转用时，
+    // 所以先走新接口（scheduling.predict 拿状态令牌，scheduling.answer 带 elapsedMs）；没有新接口的老版用 answerCards 的 duration（要打补丁才认）
+    async answerCard(cid, ease, dur) {
+        if (this.rpcOn !== false) {
+            try {
+                const { stateToken } = await this.rpc("scheduling.predict", { cardId: String(cid) });
+                await this.rpc("scheduling.answer", { cardId: String(cid), rating: ["again", "hard", "good", "easy"][ease - 1], stateToken, elapsedMs: Math.round(dur * 1000) });
+                this.rpcOn = true;
+                return true;
+            } catch (e) {
+                if (e.type === "notFound") return false;
+                if (!e.noRpc) throw e;
+                this.rpcOn = false;   // 老版 AnkiConnect：这次开着 Obsidian 期间都走老接口
+            }
+        }
+        const ok = await this.anki("answerCards", { answers: [{ cardId: cid, ease, duration: dur }] });
+        return !!ok?.[0];
+    }
+    async rpc(method, params) {
+        const r = await Promise.race([
+            requestUrl({ url: String(this.settings.ankiUrl).replace(/\/+$/, "") + "/api/v1", method: "POST", contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), throw: false }),
+            sleep(4000).then(() => { throw new Error("Anki timeout"); }),
+        ]);
+        let j = null;
+        try { j = r.json; } catch (e) { /* 老版回的不是 JSON（404 之类） */ }
+        if (j?.jsonrpc !== "2.0") throw Object.assign(new Error("AnkiConnect has no /api/v1"), { noRpc: true });
+        if (j.error) throw Object.assign(new Error(j.error.message), { type: j.error.data?.type });
+        return j.result;
+    }
     async anki(action, params = {}) {
         if (MOBILE) throw new Error("AnkiConnect is desktop only");
         const r = await Promise.race([
@@ -1886,7 +1957,7 @@ class CWSettings extends PluginSettingTab {
         const text = (name, desc, key) => new Setting(c).setName(name).setDesc(desc || "").addText((x) => x.setValue(String(s[key] ?? "")).onChange(async (v) => { s[key] = v; await save(); }));
         const num = (name, desc, key, min = 1, float = false) => new Setting(c).setName(name).setDesc(desc || "").addText((x) => x.setValue(String(s[key])).onChange(async (v) => { const n = float ? parseFloat(v) : parseInt(v); if (n >= min) { s[key] = n; await save(); } }));
         const tog = (name, desc, key) => new Setting(c).setName(name).setDesc(desc || "").addToggle((x) => x.setValue(!!s[key]).onChange(async (v) => { s[key] = v; await save(); }));
-        const area = (name, desc, key, rows) => new Setting(c).setName(name).setDesc(desc).addTextArea((x) => { x.setValue(String(s[key] ?? "")).onChange(async (v) => { s[key] = v; await save(); }); x.inputEl.rows = rows; x.inputEl.addClass("cw-wide"); });
+        const area = (name, desc, key, rows) => { let ta; new Setting(c).setName(name).setDesc(desc).addTextArea((x) => { ta = x; x.setValue(String(s[key] ?? "")).onChange(async (v) => { s[key] = v; await save(); }); x.inputEl.rows = rows; x.inputEl.addClass("cw-wide"); }); return ta; };
 
         new Setting(c).setName(t("sSync")).setDesc(t("sSyncD")).setHeading();
         text(t("sRelayUrl"), t("sRelayUrlD"), "relayUrl");
@@ -1909,7 +1980,18 @@ class CWSettings extends PluginSettingTab {
         num(t("sCount"), "", "reviewCount");
         num(t("sGoal"), "", "reviewGoal");
         tog(t("sAutoOpen"), t("sAutoOpenD"), "autoOpen");
-        area(t("sSubjects"), t("sSubjectsD"), "subjects", 6);
+        const subjArea = area(t("sSubjects"), t("sSubjectsD"), "subjects", 6);
+        new Setting(c).setName(t("sSuggest")).setDesc(t("sSuggestD")).addButton((b) => b.setButtonText(t("sSuggestB")).onClick(async () => {
+            b.setDisabled(true);
+            try {
+                const lines = await p.suggestSubjects();
+                if (!lines.length) { new Notice(t("suggestNone")); return; }
+                s.subjects = [String(s.subjects || "").trim(), ...lines].filter(Boolean).join("\n");
+                subjArea.setValue(s.subjects);
+                await save();
+                new Notice(t("suggestAdded", { n: lines.length }));
+            } finally { b.setDisabled(false); }
+        }));
 
         new Setting(c).setName(t("sWeight")).setHeading();
         num(t("sRecent"), t("sRecentD"), "recentBoost", 1, true);
