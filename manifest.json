@@ -1,7 +1,7 @@
 {
   "id": "card-walk",
   "name": "Card Walk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "minAppVersion": "1.5.0",
   "description": "Review #card flashcards and ==cloze== blocks from your notes with Anki scheduling. Answers made on your phone reach Anki on your computer within seconds, and every sync step is shown.",
   "author": "马自立",

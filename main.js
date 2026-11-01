@@ -43,6 +43,8 @@ const STR = {
     zh: {
         viewTitle: "刷卡", open: "打开刷卡", syncNow: "立刻同步", head: "🃏 刷卡 · {date}",
         focusTip: "聚焦：只看一张（⌥⌘→ 进，⌥⌘← 或 Esc 出）", againTip: "重新抽", noFocus: "没有可以聚焦的卡片",
+        backTip: "往回看答过的卡，可以一直往回（在最上面一张按 ↑ 也行）", noPrev: "没有更早答过的卡了", prevTag: " · ↶ 倒数第 {n} 张",
+        crumbTip: "点一下展开到这一层，⌘ 点打开原文", fold: "收起", ctxStale: "原文改过了，展开不了：点 ↻ 重新抽",
         pauseTip: "暂停计时：这一轮先记进日记，回来另起一行", resumeTip: "继续计时",
         goal: "今天 {done} / {goal} 张", goalMet: "✓ 今天 {done} / {goal} 张", dayTip: "{d} · {n} 张",
         streak: "连续 {n} 天", streak0: "今天开个头", left: "这一批还剩 {n} 张",
@@ -101,6 +103,8 @@ const STR = {
     en: {
         viewTitle: "Card Walk", open: "Open Card Walk", syncNow: "Sync now", head: "🃏 Card Walk · {date}",
         focusTip: "Focus on one card (⌥⌘→ in, ⌥⌘← or Esc out)", againTip: "Draw again", noFocus: "No card to focus",
+        backTip: "Look back at answered cards, one by one (or ↑ on the top card)", noPrev: "No earlier answered cards", prevTag: " · ↶ {n} back",
+        crumbTip: "Click to expand to this level, ⌘-click to open the note", fold: "Collapse", ctxStale: "The note has changed and can't be expanded: press ↻ to draw again",
         pauseTip: "Pause the timer: log this session now, start a new one when you're back", resumeTip: "Resume the timer",
         goal: "Today {done} / {goal}", goalMet: "✓ Today {done} / {goal}", dayTip: "{d} · {n} cards",
         streak: "{n}-day streak", streak0: "Start your streak today", left: "{n} left in this batch",
@@ -223,6 +227,35 @@ function cardMd(text) {
 }
 // 揭开后的挖空：{{c1::x}}、{1:x} 都显示成高亮
 const clozeReveal = (s) => String(s).replace(/\{\{c\d+::([\s\S]*?)\}\}/g, "==$1==").replace(/\{(\d+):([^{}\n]*?)\}/g, "==$2==");
+// 每个列表项连同子项到哪一行：起始行 → 子树最后一行
+function listEnds(items) {
+    const endOf = new Map();
+    for (const it of items) endOf.set(it.position.start.line, it.position.end.line);
+    for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i], p = it.parent;
+        if (p >= 0 && endOf.has(p)) endOf.set(p, Math.max(endOf.get(p), endOf.get(it.position.start.line)));
+    }
+    return endOf;
+}
+// 展开到某一层母块（和 Roam 反链一样）：从第 s 行到第 e 行这一整块，卡片本身那几行换成 own（现在该显示的样子），去掉公共缩进。
+// 卡片第一行末尾带一个记号（私用区字符），渲染完靠它找到卡片那一项（MarkdownRenderer 不给列表项标行号）
+const SELF_MARK = "\uE000";
+function ctxMd(L, s, e, it, own) {
+    const indent = (l) => (l.match(/^[\t ]*/) || [""])[0];
+    const base = indent(L[s]), out = [];
+    for (let k = s; k <= e; k++) {
+        if (k === it.line) {
+            const ind = indent(L[k]).slice(base.length);
+            own.split("\n").forEach((l, i) => out.push(l && ind + l + (i ? "" : SELF_MARK)));
+            k = it.end;
+            continue;
+        }
+        if (/^\s*\^[\w-]+\s*$/.test(L[k])) continue;
+        const l = L[k].startsWith(base) ? L[k].slice(base.length) : L[k].trimStart();
+        out.push(clozeReveal(cardText(l)).replace(/\s\^[\w-]+\s*$/, ""));
+    }
+    return out.join("\n");
+}
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
 // ---------- 跳到某一行：稳定地停在视口正中，并选中这一行的文字（和第二大脑、Hover Outline 同一份） ----------
@@ -623,6 +656,7 @@ class CardView extends ItemView {
         if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
             if (!cards.length) return;
             evt.preventDefault();
+            if (evt.key === "ArrowUp" && c && cards[0] === c && this.history?.length > this.backEls.length) { this.back(); return; }
             const i = c ? cards.indexOf(c) + (evt.key === "ArrowDown" ? 1 : -1) : 0;
             const to = cards[Math.max(0, Math.min(cards.length - 1, i))];
             if (this.focused) { if (to !== c) { const dir = evt.key === "ArrowDown" ? 1 : -1; this.flipOut(c, dir); this.focusOn(to, null, dir); } }
@@ -653,6 +687,10 @@ class CardView extends ItemView {
         const head = top.createDiv({ cls: "cw-head" });
         head.createEl("b", { text: t("head", { date: today }) });
         const btns = head.createSpan({ cls: "cw-head-btns" });
+        this.backEls = [];
+        this.backBtn = btns.createEl("button", { text: "↶", attr: { "aria-label": t("backTip") } });
+        this.backBtn.onclick = () => this.back();
+        this.backBtn.disabled = !this.history?.length;
         const fz = btns.createEl("button", { text: "◎", cls: "cw-focus-btn", attr: { "aria-label": t("focusTip") } });
         fz.onclick = () => (this.focused ? this.focusOut() : this.focusIn());
         const again = btns.createEl("button", { text: "↻", attr: { "aria-label": t("againTip") } });
@@ -753,7 +791,7 @@ class CardView extends ItemView {
     updateLeft() {
         const el = this.leftEl;
         if (!el?.isConnected) return;
-        const k = this.contentEl.querySelectorAll(LIVE).length + (this.walkQueue?.length || 0);
+        const k = this.contentEl.querySelectorAll(LIVE + ":not(.is-prev)").length + (this.walkQueue?.length || 0);
         el.setText(k ? t("left", { n: k }) : "");
     }
     walkFinished(box) {
@@ -856,6 +894,13 @@ class CardView extends ItemView {
     // 这张处理完了：收起来，后面的往上顶，从队列里补一张；聚焦着的那一张当场往上翻走，下一张从下面翻上来
     dismissWalk(c) {
         if (!c.matches(LIVE)) return;
+        // 答完的记进历史，之后能一张张往回看；正在往回看的那几张收起来
+        const st = c.cwState?.st;
+        if (st?.answered) {
+            this.dropBack();
+            (this.history ||= []).push({ it: st.it, ease: st.ease, label: st.label });
+            if (this.backBtn) this.backBtn.disabled = false;
+        }
         const inFocus = this.focused && c.hasClass("is-focus");
         if (inFocus) { c.addClass("is-exiting"); this.flipOut(c, 1); }
         else {
@@ -865,14 +910,14 @@ class CardView extends ItemView {
         }
         const finish = () => {
             const box = c.parentElement;
-            const wasSel = this.selected === c, at = box ? [...box.querySelectorAll(".cw-walk")].indexOf(c) : -1;
+            const wasSel = this.selected === c, at = box ? [...box.querySelectorAll(".cw-walk:not(.is-prev)")].indexOf(c) : -1;
             c.remove();
             const next = box === this.walkBox ? this.walkQueue?.shift() : null;
             if (next) this.walkCard(box, next);
-            else if (box && !box.querySelector(".cw-walk") && box === this.walkBox) this.walkFinished(box);
+            else if (box && !box.querySelector(".cw-walk:not(.is-prev)") && box === this.walkBox) this.walkFinished(box);
             this.updateLeft();
             if (wasSel || inFocus) {
-                const rest = box ? [...box.querySelectorAll(LIVE)] : [];
+                const rest = box ? [...box.querySelectorAll(LIVE + ":not(.is-prev)")] : [];
                 const to = rest[Math.min(at, rest.length - 1)];
                 if (inFocus && this.focused && to) this.focusOn(to, null);
                 else this.select(to, true);
@@ -880,24 +925,46 @@ class CardView extends ItemView {
         };
         if (inFocus) finish(); else setTimeout(finish, GLIDE_MS);
     }
-    walkCard(parent, it) {
+    // 往回看：从现在这张（正在看的往回那张，或面板上的卡）再往回一张。往回的卡只读（揭开着，带当时的作答结果），越早的摆得越靠上；聚焦着就翻过去
+    back() {
+        const box = this.walkBox, cur = this.focused ? this.contentEl.querySelector(".cw-walk.is-focus:not(.is-exiting)") : this.selected;
+        const depth = (this.backEls.indexOf(cur) + 1) + 1;   // 倒数第几张：1 = 刚答完的那张
+        let c = this.backEls[depth - 1];
+        if (!c?.isConnected) {
+            const h = this.history || [];
+            if (depth > h.length || !box?.isConnected) { new Notice(t("noPrev")); return; }
+            c = this.walkCard(box, h[h.length - depth], depth);
+            const top = [...box.children].find((x) => x !== c && (x.hasClass("cw-walk") || x.hasClass("cw-finish")));
+            if (top) box.insertBefore(c, top);
+            this.backEls[depth - 1] = c;
+            if (!this.focused) glide(c, null, -28);
+        }
+        if (this.focused) { if (c !== cur) { this.flipOut(cur, -1); this.focusOn(c, null, -1); } }
+        else this.select(c, true);
+    }
+    // 又答完一张：往回看的那几张收起来（历史还在，随时能再往回）
+    dropBack() {
+        for (const e of this.backEls || []) {
+            if (!e.isConnected) continue;
+            e.setCssStyles({ height: e.offsetHeight + "px" });
+            e.addClass("is-leaving");
+            requestAnimationFrame(() => e.setCssStyles({ height: "0px" }));
+            setTimeout(() => e.remove(), GLIDE_MS);
+        }
+        this.backEls = [];
+    }
+    // depth：往回看的第几张（只看不答，显示当时的作答结果），这时 it 是历史里的那条 { it, ease, label }
+    walkCard(parent, it, depth) {
+        const prev = depth ? it : null;
+        if (prev) it = prev.it;
         const p = this.plugin;
-        const c = parent.createDiv({ cls: `cw-card cw-walk is-${it.kind}` });
+        const c = parent.createDiv({ cls: `cw-card cw-walk is-${it.kind}` + (prev ? " is-prev" : "") });
         const meta = c.createDiv({ cls: "cw-meta" });
         const jd = p.journalDate(it.file);
         const where = jd ? jd.format("YYYY-MM-DD") : it.file.basename;
         const subj = !it.lang && p.subjects().length ? ` · ${p.subjectOf(it)}` : "";
-        meta.createEl("span", { text: `${it.kind === "card" ? t("kCard") : t("kCloze")} · ${where}${subj}` + (it.again ? t("again") : "") });
-        // 母块：包着这张卡的各层，从外到内；⌘ 点哪一层跳到哪一层
-        if (it.ctx?.length) {
-            const bc = c.createDiv({ cls: "cw-crumbs" });
-            it.ctx.forEach((x, i) => {
-                if (i) bc.createSpan({ cls: "cw-crumb-sep", text: " › " });
-                const tx = plain(x.text);
-                const a = bc.createSpan({ cls: "cw-crumb", text: tx.length > 40 ? tx.slice(0, 39) + "…" : tx, attr: { "aria-label": tx.length > 40 ? tx : "" } });
-                a.onclick = (evt) => { evt.stopPropagation(); if (Keymap.isModEvent(evt)) p.openAt(it.file, x.line, evt); };
-            });
-        }
+        meta.createEl("span", { text: `${it.kind === "card" ? t("kCard") : t("kCloze")} · ${where}${subj}` + (it.again ? t("again") : "") + (prev ? t("prevTag", { n: depth }) : "") });
+        const bc = it.ctx?.length ? c.createDiv({ cls: "cw-crumbs" }) : null;
         // 按 Markdown 渲染；点里面的双链跳过去，⌘ 点别处打开原文
         const body = c.createDiv({ cls: "cw-text cw-md markdown-rendered" });
         body.addEventListener("click", (evt) => {
@@ -911,15 +978,63 @@ class CardView extends ItemView {
         const full = clozeReveal(md);
         // 卡片：第一行是问题，子项是答案；挖空：遮住（一条笔记在 Anki 里有好几张卡时，只遮这次要复习的那个空）
         const hiddenOf = (target) => it.kind === "card" ? lines[0] + (lines.length > 1 ? "\n\n…" : "") : clozeMask(md, target);
-        const show = (m) => { body.empty(); MarkdownRenderer.render(this.app, m, body, it.file.path, this); };
-        // 「重来」后排回来的那张不再算进今天的张数
-        const st = { revealed: false, card: null, reviewable: false, it, goal: !!it.again, done: () => this.dismissWalk(c) };
-        show(hiddenOf(null));
+        // 「重来」后排回来的那张不再算进今天的张数；level = 展开到第几层母块（null = 只看卡片本身）
+        const st = { revealed: !!prev || hiddenOf(null) === full, answered: !!prev, level: null, card: null, reviewable: false, it, goal: !!it.again, done: () => this.dismissWalk(c) };
+        // 按现在的样子画正文：没揭开的照旧遮着。展开了母块就画那一整块，卡片本身那一块加底色（原文要现读：卡池最多留 10 分钟）
+        const paint = async () => {
+            const seq = (st.paintSeq = (st.paintSeq || 0) + 1);
+            const m = st.revealed ? full : hiddenOf(st.target ?? null);
+            const x = st.level != null && it.ctx[st.level];
+            let out = m;
+            if (x) {
+                const L = (await this.app.vault.cachedRead(it.file)).split("\n");
+                const items = this.app.metadataCache.getFileCache(it.file)?.listItems || [];
+                const end = listEnds(items).get(x.line);
+                if (seq !== st.paintSeq) return;
+                if (end == null || L.slice(it.line, it.end + 1).join("\n") !== it.text) { new Notice(t("ctxStale")); st.level = null; crumbs(); }
+                else out = ctxMd(L, x.line, end, it, !st.revealed && it.kind === "card" ? lines[0] + (lines.length > 1 ? "\n\t- …" : "") : m);
+            }
+            body.empty();
+            await MarkdownRenderer.render(this.app, out, body, it.file.path, this);
+            if (seq !== st.paintSeq || out === m) return;
+            const tw = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+            let n;
+            while ((n = tw.nextNode()) && !n.data.includes(SELF_MARK));
+            if (!n) return;
+            n.data = n.data.replace(SELF_MARK, "");
+            const li = n.parentElement.closest("li");
+            if (!li) return;
+            li.addClass("cw-ctx-self");
+            body.scrollTop += li.getBoundingClientRect().top - body.getBoundingClientRect().top - 24;
+        };
+        // 母块：包着这张卡的各层，从外到内。点哪一层就展开到哪一层（和 Roam 反链一样：显示那一块连同下面所有子块，面包屑只留更外面的几层）；⌘ 点跳到原文
+        const crumbs = () => {
+            if (!bc) return;
+            bc.empty();
+            it.ctx.slice(0, st.level ?? it.ctx.length).forEach((x, i) => {
+                if (i) bc.createSpan({ cls: "cw-crumb-sep", text: " › " });
+                const tx = plain(x.text);
+                const a = bc.createSpan({ cls: "cw-crumb", text: tx.length > 40 ? tx.slice(0, 39) + "…" : tx, attr: { "aria-label": (tx.length > 40 ? tx + "\n" : "") + t("crumbTip") } });
+                a.onclick = (evt) => { evt.stopPropagation(); if (Keymap.isModEvent(evt)) p.openAt(it.file, x.line, evt); else { st.level = i; crumbs(); paint(); } };
+            });
+            if (st.level == null) return;
+            const f = bc.createSpan({ cls: "cw-crumb cw-crumb-fold", text: t("fold") });
+            f.onclick = (evt) => { evt.stopPropagation(); st.level = null; crumbs(); paint(); };
+        };
+        crumbs();
+        paint();
+        if (prev) {
+            c.cwState = { st, refill: () => {} };
+            c.createDiv({ cls: "cw-anki is-done", text: `${t("ease" + prev.ease)} · ${prev.label}` });
+            c.addEventListener("mousedown", () => this.select(c));
+            c.onclick = (evt) => { if (Keymap.isModEvent(evt)) p.openAt(it.file, it.line, evt); };
+            return c;
+        }
         const row = c.createDiv({ cls: "cw-actions" });
         const anki = p.settings.ankiReview ? c.createDiv({ cls: "cw-anki", text: "…" }) : null;
-        const onTarget = () => { if (!st.revealed && it.kind === "cloze" && st.target) show(hiddenOf(st.target)); };
+        const onTarget = () => { if (!st.revealed && it.kind === "cloze" && st.target) paint(); };
         const reveal = () => {
-            st.revealed = true; show(full); row.empty();
+            st.revealed = true; paint(); row.empty();
             if (p.settings.fxSound) FX.reveal(fxVol(p.settings));
             p.spend(st);
             p.reviewTick(st, "look");
@@ -928,7 +1043,7 @@ class CardView extends ItemView {
         if (hiddenOf(null) !== full) {
             const b = row.createEl("button", { text: t("reveal"), cls: "cw-reveal" });
             b.onclick = (evt) => { evt.stopPropagation(); reveal(); };
-        } else st.revealed = true;
+        }
         // 进度变了（另一台设备答过、补写了手机的作答）时重查这张能不能答：recheck 用
         c.cwState = { st, refill: () => anki && !st.answered && this.fill(it, anki, row, st, onTarget) };
         if (anki) this.fill(it, anki, row, st, onTarget);
@@ -944,6 +1059,7 @@ class CardView extends ItemView {
             menu.addItem((i) => i.setTitle(t("openSrc")).setIcon("file-text").onClick(() => p.openAt(it.file, it.line)));
             menu.showAtMouseEvent(evt);
         });
+        return c;
     }
     // 拿到新进度（快照换了、补写了手机的作答）：面板上还没答的卡重查一遍能不能答
     recheck() {
@@ -1032,7 +1148,7 @@ class CardView extends ItemView {
                         p.snapSoon();
                         label = after.queue === 2 ? t("nextDays", { n: after.interval }) : t("soon");
                     }
-                    st.answered = true;
+                    st.answered = true; st.ease = ease; st.label = label;
                     p.reviewTick(st, "answer", ease);
                     // 答「重来」：隔三张再出来一次，趁热再想一遍（只再来一次）
                     if (ease === 1 && st.it && !st.it.again && this.walkQueue) {
@@ -1407,16 +1523,11 @@ module.exports = class CardWalk extends Plugin {
             const skip = new Set();
             for (const sec of c.sections || []) if (sec.type === "code" || sec.type === "yaml") for (let i = sec.position.start.line; i <= sec.position.end.line; i++) skip.add(i);
             // 第 k 行所在的列表项，连同它的子项；不在列表里就取那一段。先一遍算好每行属于谁、每项的子树到哪一行
-            const owner = new Array(L.length).fill(null), endOf = new Map();
+            const owner = new Array(L.length).fill(null), endOf = listEnds(items);
             for (const sec of c.sections || []) for (let i = sec.position.start.line; i <= sec.position.end.line && i < L.length; i++) owner[i] = { s: sec.position.start.line, e: sec.position.end.line };
             for (const it of items) {
                 const st = it.position.start.line;
-                endOf.set(st, it.position.end.line);
                 for (let i = st; i <= it.position.end.line && i < L.length; i++) owner[i] = st;
-            }
-            for (let i = items.length - 1; i >= 0; i--) {
-                const it = items[i], p = it.parent;
-                if (p >= 0 && endOf.has(p)) endOf.set(p, Math.max(endOf.get(p), endOf.get(it.position.start.line)));
             }
             const blockAt = (k) => { const o = owner[k]; if (o == null) return { s: k, e: k }; return typeof o === "number" ? { s: o, e: endOf.get(o) } : o; };
             const linksAt = new Map();

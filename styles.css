@@ -134,6 +134,13 @@
 .cw-crumbs { font-size: .76em; color: var(--text-faint); margin: 0 0 3px; line-height: 1.4; }
 .cw-crumb { cursor: pointer; }
 .cw-crumb:hover { color: var(--text-accent); text-decoration: underline; }
+.cw-crumb-fold { margin-left: 8px; padding: 0 6px; border-radius: 6px; background: var(--cw-btn); box-shadow: 0 0 0 1px var(--cw-btn-ring); }
+.cw-crumb-fold:hover { text-decoration: none; }
+/* 展开母块后，卡片本身那一块（连同子块）加底色 */
+.cw-md li.cw-ctx-self { background: color-mix(in srgb, var(--interactive-accent) 9%, transparent); box-shadow: -6px 0 0 color-mix(in srgb, var(--interactive-accent) 9%, transparent); border-radius: 0 6px 6px 0; }
+/* 回去看的上一张：只读，淡一点 */
+.cw-card.cw-walk.is-prev { opacity: .78; }
+.cw-card.cw-walk.is-prev.is-focus, .cw-card.cw-walk.is-prev.is-selected { opacity: 1; }
 .cw-text { line-height: 1.45; word-break: break-word; }
 .cw-md { max-height: 24em; overflow-y: auto; }
 .cw-md > :first-child { margin-top: 0; }
