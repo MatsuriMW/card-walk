@@ -234,7 +234,8 @@ const clozeReveal = (s) => String(s).replace(/\{\{c\d+::([\s\S]*?)\}\}/g, "==$1=
 // 每个列表项连同子项到哪一行：起始行 → 子树最后一行
 function listEnds(items) {
     const endOf = new Map();
-    for (const it of items) endOf.set(it.position.start.line, it.position.end.line);
+    // 「- 2. 正文」这种写法在同一行起两个列表项（外层无序、里层有序），取更大的结束行，免得里层把外层下面的表格截掉
+    for (const it of items) { const s = it.position.start.line; endOf.set(s, Math.max(endOf.get(s) ?? -1, it.position.end.line)); }
     for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i], p = it.parent;
         if (p >= 0 && endOf.has(p)) endOf.set(p, Math.max(endOf.get(p), endOf.get(it.position.start.line)));
